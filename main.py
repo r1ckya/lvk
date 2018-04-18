@@ -16,14 +16,13 @@ def main():
     id_to_task = dict()
     num_tasks = len(data['system']['task'])
     for i, task in enumerate(data['system']['task']):
-        # prior->sortedlist(ready_time, id)
-        prior_to_tasks[task['@priority']].add((0, i))
-        # id->task_dict
-        id_to_task[i] = dict(name=task['@name'],            
-                             duration=int(task['@duration']),
-                             period=int(task['@period']))
+        # prior->sortedlist(ready_time, id) longer period -> lower prior
+        prior_to_tasks[-task['@period']].add((0, i))
+        # id->task last item is time in [0, duration]
+        id_to_task[i] = [task['@name'], int(task['@duration']), int(task['@period']), 0]
     priors = sorted(prior_to_tasks.keys(), reverse=True)
     t = 0
+    cur_task = num_tasks
     while t < runtime:
         for prior in priors:
             tasks = prior_to_tasks[prior]
@@ -33,11 +32,19 @@ def main():
                 k = randint(0, idx)
                 task_id = tasks[k][1]
                 task = id_to_task[task_id]
-                out.write(f'<start name="{task["name"]}" time="{t}"/>\n')
-                t += task['duration'] - 1
+                if cur_task != task_id:
+                    cur_task = task_id
+                    out.write(f'<{["start", "continue"][task[-1] != 0]} name="{task[0]}" time="{t}"/>\n')
+                task[-1] += 1
                 # update task time
                 tasks.pop(k)
-                tasks.add((t + task['period'] - t % task['period'], task_id))
+                # done vs duration
+                if task[-1] == task[1]:
+                    # wait till next period
+                    tasks.add((t + 1) + task[-2] - (t + 1) % task[-2])
+                else:
+                    # wait 1 tick
+                    tasks.add((t + 1, task_id))
                 break
         # update time
         nxt_t = runtime

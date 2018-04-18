@@ -1,0 +1,8 @@
+<system runtime="12">
+
+<task name="task1" period="3" duration="1"/>
+<task name="task2" period="4" duration="2"/>
+<task name="task3" period="6" duration="4"/>
+
+</system>
+
