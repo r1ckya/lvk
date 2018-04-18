@@ -35,38 +35,43 @@ def main():
     t = 0
     while t < runtime:
         # min time to swap tasks
-        any_task = 0
         pref_t = runtime
         for prior in priors:
-            tasks = prior_to_tasks[prior]
-            # [0, idx] - ready tasks
-            idx = tasks.bisect((t, num_tasks)) - 1
-            if idx >= 0:
-                any_task = 1
-                k = randint(0, idx)
-                task_id = tasks[k][1]
-                task = id_to_task[task_id]
-                out.write(f'<{["start", "continue"][task.done != 0]} name="{task.name}" time="{t}"/>\n')
-                # next task time
-                nxt_t = min(t + task.duration - task.done, pref_t)
-                task.done += nxt_t - t
-                # update task time
-                tasks.pop(k)
-                # update t
-                t = nxt_t
-                # done vs duration
-                if task.done == task.duration:
-                    # task done
-                    task.done = 0
-                    # wait till next period
-                    tasks.add((t + task.period - t % task.period, task_id))
+            go_to_start = False
+            while True:
+                tasks = prior_to_tasks[prior]
+                # [0, idx] - ready tasks
+                idx = tasks.bisect((t, num_tasks)) - 1
+                if idx >= 0:
+                    k = randint(0, idx)
+                    task_id = tasks[k][1]
+                    task = id_to_task[task_id]
+                    out.write(f'<{["start", "continue"][task.done != 0]} name="{task.name}" time="{t}"/>\n')
+                    # next task time
+                    nxt_t = min(t + task.duration - task.done, pref_t)
+                    task.done += nxt_t - t
+                    # update task time
+                    tasks.pop(k)
+                    # update t
+                    t = nxt_t
+                    # done vs duration
+                    if task.done == task.duration:
+                        # task done
+                        task.done = 0
+                        # wait till next period
+                        tasks.add((t + task.period - t % task.period, task_id))
+                    else:
+                        tasks.add((t, task_id))
+                    if t == pref_t or t >= runtime:
+                        # go to task with higher prior
+                        go_to_start = True
+                        break
                 else:
-                    tasks.add((t, task_id))
-                # go to task with higher prior
-                if t == pref_t:
                     break
+            if go_to_start:
+                break
             pref_t = min(pref_t, prior_to_tasks[prior][0][0])
-        if not any_task:
+        if not go_to_start:
             t = pref_t
     out.write('</trace>\n')
     out.close()
